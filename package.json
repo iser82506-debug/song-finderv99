@@ -1,0 +1,9 @@
+{
+  "name": "taher-song-finder-backend",
+  "version": "2.0.0",
+  "private": true,
+  "description": "AcoustID + Chromaprint recognition backend for Taher Song Finder",
+  "main": "server.js",
+  "engines": { "node": ">=18" },
+  "scripts": { "start": "node server.js", "test": "node test/test.js" }
+}

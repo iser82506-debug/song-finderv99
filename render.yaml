@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: taher-song-finder
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ACOUSTID_CLIENT_KEY
+        sync: false
+      - key: MB_CONTACT
+        sync: false

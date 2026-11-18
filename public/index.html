@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SongFinder – Developer Taher</title>
+<meta name="theme-color" content="#2527d6">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;800&family=Figtree:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#2527d6;--bg2:#15167f;--ink:#f3f4ff;--soft:#b9bcff;--hot:#ffd23f;--pink:#ff5fa2;--card:#f3f4ff;--cardink:#14155e;--ease:cubic-bezier(.2,.9,.25,1.15)}
+*{box-sizing:border-box;margin:0}
+html,body{min-height:100%}
+body{background:linear-gradient(160deg,var(--bg) 0%,var(--bg2) 100%) fixed;color:var(--ink);font-family:Figtree,system-ui,sans-serif;padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom);display:flex;flex-direction:column;align-items:center;min-height:100vh;overflow-x:hidden;position:relative}
+
+/* Background: drifting colour blobs + rising notes */
+.blob{position:fixed;border-radius:50%;filter:blur(70px);opacity:.55;pointer-events:none;z-index:0}
+.b1{width:340px;height:340px;background:#5b5eff;top:-90px;left:-100px;animation:drift1 16s ease-in-out infinite alternate}
+.b2{width:300px;height:300px;background:var(--pink);opacity:.28;bottom:-80px;right:-90px;animation:drift2 19s ease-in-out infinite alternate}
+.b3{width:220px;height:220px;background:#00c2ff;opacity:.22;top:45%;left:55%;animation:drift3 22s ease-in-out infinite alternate}
+@keyframes drift1{to{transform:translate(120px,160px) scale(1.2)}}
+@keyframes drift2{to{transform:translate(-140px,-120px) scale(1.15)}}
+@keyframes drift3{to{transform:translate(-200px,80px) scale(.8)}}
+#notes{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+#notes i{position:absolute;bottom:-40px;font-style:normal;color:rgba(255,255,255,.16);animation:rise linear infinite}
+@keyframes rise{to{transform:translateY(-115vh) rotate(40deg)}}
+
+header,main,footer{position:relative;z-index:1}
+header{width:100%;max-width:560px;padding:18px 0;display:flex;align-items:center;gap:10px;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:20px;animation:down .7s var(--ease) both}
+@keyframes down{from{opacity:0;transform:translateY(-16px)}}
+.logo{width:32px;height:32px;border-radius:10px;background:var(--hot);color:var(--bg2);display:grid;place-items:center;font-size:17px;transition:transform .4s var(--ease)}
+header:hover .logo{transform:rotate(-14deg) scale(1.15)}
+
+main{flex:1;width:100%;max-width:560px;display:flex;flex-direction:column;align-items:center;text-align:center}
+h1{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:clamp(36px,10vw,56px);line-height:1.04;margin:16px 0 10px}
+h1 span{display:inline-block;animation:pop .8s var(--ease) both}
+@keyframes pop{from{opacity:0;transform:translateY(34px) rotate(5deg)}}
+.sub{color:var(--soft);max-width:34ch;line-height:1.5;animation:fade 1s .5s both}
+@keyframes fade{from{opacity:0}}
+
+.stage{position:relative;width:min(330px,82vw);aspect-ratio:1;margin:26px 0 14px;display:grid;place-items:center;animation:fade 1s .7s both}
+canvas#viz{position:absolute;inset:0;width:100%;height:100%}
+#btn{position:relative;width:50%;aspect-ratio:1;border-radius:50%;border:0;background:var(--hot);color:var(--bg2);cursor:pointer;font:800 18px 'Bricolage Grotesque',sans-serif;box-shadow:0 14px 40px rgba(0,0,0,.35);transition:transform .25s var(--ease),background .4s,color .4s;overflow:hidden;animation:breathe 3.2s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(1.06);box-shadow:0 0 0 14px rgba(255,210,63,.18),0 14px 40px rgba(0,0,0,.35)}}
+#btn:hover{transform:scale(1.08)}
+#btn:active{transform:scale(.93)}
+#btn:focus-visible{outline:4px solid #fff;outline-offset:5px}
+#btn.listening{background:var(--pink);color:#fff;animation:none;transform:scale(1.04)}
+#btn.searching{background:#fff;color:var(--bg);animation:none}
+#btn .ic{display:block;margin:0 auto 4px;transition:transform .4s var(--ease)}
+#btn.listening .ic{animation:wob .6s ease-in-out infinite alternate}
+#btn.searching .ic{animation:spin 1s linear infinite}
+@keyframes wob{to{transform:scale(1.2) rotate(8deg)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.rip{position:absolute;border-radius:50%;background:rgba(20,21,94,.25);transform:scale(0);animation:ripple .7s ease-out forwards;pointer-events:none}
+@keyframes ripple{to{transform:scale(4);opacity:0}}
+
+.status{min-height:26px;font-weight:600;transition:opacity .3s}
+.status.swap{animation:fade .4s}
+.err{color:#ffb3b3;animation:shake .45s}
+@keyframes shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+
+#result{width:100%;margin-top:14px;perspective:900px}
+.card{background:var(--card);color:var(--cardink);border-radius:24px;padding:16px;display:flex;gap:16px;align-items:center;text-align:left;margin-bottom:12px;box-shadow:0 20px 50px rgba(0,0,0,.3);animation:cardin .8s var(--ease) both}
+@keyframes cardin{from{opacity:0;transform:translateY(60px) rotateX(-25deg) scale(.9)}}
+.cover{position:relative;width:96px;height:96px;flex:none}
+.cover img{position:relative;z-index:2;width:96px;height:96px;border-radius:14px;object-fit:cover;background:#d6d8ff;box-shadow:0 6px 16px rgba(0,0,0,.3)}
+.vinyl{position:absolute;z-index:1;top:6px;left:6px;width:84px;height:84px;border-radius:50%;background:radial-gradient(circle,#ffd23f 0 14%,#111 15% 30%,#222 31% 33%,#111 34% 52%,#2a2a2a 53% 55%,#111 56%);animation:slide .9s .5s var(--ease) forwards,spin 3s 1.4s linear infinite}
+@keyframes slide{to{left:58px}}
+.card .txt{min-width:0;margin-left:34px}
+.card h2{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;line-height:1.15;animation:fade .6s .5s both}
+.card p{opacity:.75;font-size:15px;margin-top:3px;animation:fade .6s .65s both}
+.links{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.links a{background:var(--bg);color:#fff;text-decoration:none;font-weight:600;font-size:13px;padding:8px 14px;border-radius:99px;transition:transform .25s var(--ease),background .25s;animation:pop .6s both}
+.links a:nth-child(1){animation-delay:.8s}.links a:nth-child(2){animation-delay:.9s}.links a:nth-child(3){animation-delay:1s}
+.links a:hover{transform:translateY(-3px) scale(1.06);background:var(--pink)}
+
+.up{background:none;border:0;color:var(--soft);text-decoration:underline;cursor:pointer;font:inherit;margin-top:6px}
+.up:disabled{opacity:.4;cursor:default}
+.meta{font-size:13px;color:var(--soft);margin-top:6px}
+.meta a{color:inherit}
+.hist{width:100%;margin-top:26px;text-align:left}
+.hist h3{font-family:'Bricolage Grotesque',sans-serif;font-size:18px;margin-bottom:8px}
+.hist ul{padding:0}
+.hist li{list-style:none;padding:11px 8px;border-top:1px solid rgba(255,255,255,.18);display:flex;justify-content:space-between;gap:10px;font-size:15px;border-radius:10px;transition:background .25s,padding .25s;animation:slidein .5s var(--ease) both}
+.hist li:hover{background:rgba(255,255,255,.1);padding-left:14px}
+@keyframes slidein{from{opacity:0;transform:translateX(-24px)}}
+.hist li span{color:var(--soft)}
+.hist button{background:none;border:0;color:var(--soft);text-decoration:underline;cursor:pointer;font:inherit;margin-top:8px}
+footer{padding:26px 0 20px;color:var(--soft);font-size:14px}
+footer b{color:var(--ink)}
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+<div id="notes" aria-hidden="true"></div>
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<header><div class="logo">♪</div>SongFinder</header>
+<main>
+  <h1><span style="animation-delay:.1s">What</span> <span style="animation-delay:.2s">song</span> <span style="animation-delay:.3s">is</span> <span style="animation-delay:.4s">this?</span></h1>
+  <p class="sub">Tap the button and hold your phone near the music for about 20 seconds, or upload a song.</p>
+  <div class="stage">
+    <canvas id="viz"></canvas>
+    <button id="btn" aria-label="Start listening">
+      <svg class="ic" width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V22h2v-3.1A7 7 0 0 0 19 12h-2z"/></svg>
+      <span id="btnTxt">Listen</span>
+    </button>
+  </div>
+  <div class="status" id="status" role="status"></div>
+  <input type="file" id="file" accept="audio/*,video/mp4,video/webm,.mp3,.wav,.m4a,.ogg,.webm,.mp4" hidden>
+  <button id="upBtn" class="up" type="button">or upload a song</button>
+  <div id="result"></div>
+  <section class="hist" id="histBox" hidden>
+    <h3>Songs you found</h3><ul id="hist"></ul>
+    <button id="clear">Clear list</button>
+  </section>
+</main>
+<footer>Made by <b>Developer Taher</b></footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const btn = $("btn"), btnTxt = $("btnTxt"), statusEl = $("status"), result = $("result");
+const canvas = $("viz"), ctx = canvas.getContext("2d");
+const fx = $("fx"), fctx = fx.getContext("2d");
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const LISTEN_MS = 20000;
+const BACKEND = "";   // same origin: this page is served by the backend
+const MAX_UPLOAD = 60*1024*1024;
+let state = "idle", analyser, freq, level = 0, startT = 0;
+
+/* floating notes */
+if (!reduce){
+  const n = $("notes"), chars = ["♪","♫","♩","♬"];
+  for (let i=0;i<14;i++){
+    const e = document.createElement("i");
+    e.textContent = chars[i%4];
+    e.style.left = Math.random()*100+"%";
+    e.style.fontSize = (18+Math.random()*34)+"px";
+    e.style.animationDuration = (12+Math.random()*14)+"s";
+    e.style.animationDelay = (-Math.random()*20)+"s";
+    n.appendChild(e);
+  }
+}
+
+function setState(s){
+  state = s;
+  btn.classList.toggle("listening", s==="listening");
+  btn.classList.toggle("searching", s==="searching");
+}
+function setStatus(t, err){
+  statusEl.textContent = t;
+  statusEl.className = "status swap" + (err ? " err" : "");
+}
+
+/* radial equalizer + progress ring */
+const BARS = 72;
+function draw(){
+  const s = canvas.clientWidth, dpr = devicePixelRatio || 1;
+  if (canvas.width !== Math.round(s*dpr)) canvas.width = canvas.height = Math.round(s*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,s,s);
+  const t = performance.now()/1000, c = s/2, r0 = s*.31;
+  if (analyser) analyser.getByteFrequencyData(freq);
+  let total = 0;
+  for (let i=0;i<BARS;i++){
+    const a = i/BARS*Math.PI*2 - Math.PI/2;
+    let v;
+    if (state==="listening" && analyser){
+      const k = Math.abs(i-BARS/2)/(BARS/2);              // mirror the spectrum
+      v = freq[Math.floor(k*freq.length*.45)]/255; total += v;
+    } else if (state==="searching"){
+      v = .35 + .35*Math.sin(t*5 - i*.45);
+    } else {
+      v = .12 + .1*Math.sin(t*1.6 + i*.35);
+    }
+    const len = 4 + v*s*.13;
+    ctx.beginPath();
+    ctx.moveTo(c+Math.cos(a)*r0, c+Math.sin(a)*r0);
+    ctx.lineTo(c+Math.cos(a)*(r0+len), c+Math.sin(a)*(r0+len));
+    ctx.strokeStyle = state==="listening" ? `hsl(${330+v*50},95%,${70+v*15}%)` : "rgba(243,244,255,.75)";
+    ctx.lineWidth = Math.max(2, s*.011); ctx.lineCap = "round"; ctx.stroke();
+  }
+  if (state==="listening"){
+    const p = Math.min(1,(performance.now()-startT)/LISTEN_MS);
+    ctx.beginPath(); ctx.arc(c,c,s*.485,-Math.PI/2,-Math.PI/2+p*Math.PI*2);
+    ctx.strokeStyle="#ffd23f"; ctx.lineWidth=4; ctx.lineCap="round"; ctx.stroke();
+  }
+  drawConfetti();
+  requestAnimationFrame(draw);
+}
+
+/* confetti */
+let bits = [];
+function burst(){
+  if (reduce) return;
+  const w = fx.width = innerWidth, h = fx.height = innerHeight;
+  const cols = ["#ffd23f","#ff5fa2","#00c2ff","#fff","#7a7dff"];
+  for (let i=0;i<110;i++) bits.push({x:w/2,y:h*.45,vx:(Math.random()-.5)*14,vy:-Math.random()*14-4,r:Math.random()*6+3,c:cols[i%5],a:Math.random()*6,va:(Math.random()-.5)*.4,life:1});
+}
+function drawConfetti(){
+  if (!bits.length) { if (fctx) fctx.clearRect(0,0,fx.width,fx.height); return; }
+  fctx.clearRect(0,0,fx.width,fx.height);
+  bits = bits.filter(b=>b.life>0);
+  for (const b of bits){
+    b.x+=b.vx; b.y+=b.vy; b.vy+=.35; b.vx*=.99; b.a+=b.va; b.life-=.012;
+    fctx.save(); fctx.globalAlpha=Math.max(b.life,0); fctx.translate(b.x,b.y); fctx.rotate(b.a);
+    fctx.fillStyle=b.c; fctx.fillRect(-b.r,-b.r/2,b.r*2,b.r); fctx.restore();
+  }
+}
+draw();
+
+/* tap ripple */
+btn.addEventListener("pointerdown", e=>{
+  const r = btn.getBoundingClientRect(), d = Math.max(r.width,r.height)*.5;
+  const el = document.createElement("span"); el.className="rip";
+  el.style.cssText = `width:${d}px;height:${d}px;left:${e.clientX-r.left-d/2}px;top:${e.clientY-r.top-d/2}px`;
+  btn.appendChild(el); setTimeout(()=>el.remove(),700);
+});
+
+function pickMime(){
+  for (const m of ["audio/webm;codecs=opus","audio/webm","audio/mp4","audio/ogg"])
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+  return "";
+}
+
+async function listen(){
+  if (state!=="idle") return;
+  if (!navigator.mediaDevices?.getUserMedia){ setStatus("This browser can't use the microphone. Open the site with HTTPS in Chrome or Safari.", true); return; }
+  result.innerHTML = "";
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:true } });
+  } catch { setStatus("Microphone is blocked. Allow it in your browser settings and try again.", true); return; }
+
+  setState("listening"); btnTxt.textContent = "Listening";
+  const ac = new (window.AudioContext||window.webkitAudioContext)();
+  analyser = ac.createAnalyser(); analyser.fftSize = 512; analyser.smoothingTimeConstant = .75;
+  freq = new Uint8Array(analyser.frequencyBinCount);
+  ac.createMediaStreamSource(stream).connect(analyser);
+
+  const mime = pickMime(), chunks = [];
+  const rec = new MediaRecorder(stream, mime ? { mimeType:mime } : undefined);
+  rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  rec.start(); startT = performance.now();
+  let left = LISTEN_MS/1000; setStatus(`Listening… ${left}s`);
+  const tick = setInterval(()=> setStatus(`Listening… ${--left}s`), 1000);
+
+  await new Promise(r => setTimeout(r, LISTEN_MS));
+  clearInterval(tick);
+  await new Promise(r => { rec.onstop = r; rec.stop(); });
+  stream.getTracks().forEach(t => t.stop()); ac.close(); analyser = null;
+
+  const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+  await identify(blob);
+  setState("idle"); btnTxt.textContent = "Listen again";
+}
+
+async function identify(blob){
+  setState("searching"); btnTxt.textContent = "Searching"; setStatus("Fingerprinting and searching…");
+  upBtn.disabled = true;
+  try {
+    let res;
+    try {
+      res = await fetch(BACKEND + "/recognize", { method:"POST", headers:{ "Content-Type": blob.type || "application/octet-stream" }, body: blob });
+    } catch { throw new Error("Can't reach the recognition server. Check your connection and try again."); }
+    let j = null; try { j = await res.json(); } catch {}
+    if (!j) throw new Error("The server sent an unexpected response.");
+    if (j.status === "error") throw new Error(j.message || "Recognition failed.");
+    if (j.status === "no_match") setStatus("No match found. This song may not be in the AcoustID database. Try again closer to the music, or from the start of the song.", true);
+    else if (j.status === "ok"){
+      show(j);
+      if (j.match.confirmed){ setStatus("Found it!"); burst(); } else setStatus("Possible match — not fully certain.");
+      save(j.match);
+    } else throw new Error("The server sent an unexpected response.");
+  } catch (e) { setStatus(e.message || "Something went wrong. Try again.", true); }
+  upBtn.disabled = false;
+}
+
+const upBtn = $("upBtn"), fileIn = $("file");
+upBtn.onclick = () => { if (state==="idle") fileIn.click(); };
+fileIn.onchange = async () => {
+  const f = fileIn.files[0]; fileIn.value = "";
+  if (!f || state!=="idle") return;
+  result.innerHTML = "";
+  if (f.size > MAX_UPLOAD){ setStatus("That file is over the 60 MB limit.", true); return; }
+  if (!/^(audio|video)\//.test(f.type) && !/\.(mp3|wav|m4a|ogg|webm|mp4)$/i.test(f.name)){ setStatus("Unsupported file. Use MP3, WAV, M4A, OGG, WebM or MP4.", true); return; }
+  await identify(f);
+  setState("idle"); btnTxt.textContent = "Listen";
+};
+
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function show(j){
+  const r = j.match, mb = r.musicbrainz;
+  const pct = Math.round(r.score*100);
+  const q = encodeURIComponent((r.artist||"")+" "+r.title);
+  const meta = [];
+  if (mb?.releaseDate) meta.push("Released " + esc(mb.releaseDate));
+  meta.push((r.confirmed ? "Match score " : "Possible match, score ") + pct + "%");
+  if (mb?.genres?.length) meta.push(esc(mb.genres.join(", ")));
+  const alts = (j.alternatives||[]).slice(0,3).map(a => esc(a.title)+(a.artist?" – "+esc(a.artist):"")+" ("+Math.round(a.score*100)+"%)");
+  result.innerHTML = `<div class="card"><div class="cover"><div class="vinyl"></div>${r.artworkUrl?`<img src="${esc(r.artworkUrl)}" alt="Album cover" onerror="this.removeAttribute('src')">`:`<img alt="">`}</div>
+    <div class="txt"><h2>${esc(r.title)}</h2><p>${esc(r.artist||"Unknown artist")}${r.album?" · "+esc(r.album):""}</p>
+    <div class="meta">${meta.join(" · ")}${mb?.url?` · <a href="${esc(mb.url)}" target="_blank" rel="noopener">MusicBrainz</a>`:""}</div>
+    ${alts.length?`<div class="meta">Other possibilities: ${alts.join("; ")}</div>`:""}
+    <div class="links"><a href="https://open.spotify.com/search/${q}" target="_blank" rel="noopener">Spotify</a>
+    <a href="https://music.apple.com/search?term=${q}" target="_blank" rel="noopener">Apple Music</a>
+    <a href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener">YouTube</a></div></div></div>`;
+}
+
+/* Saved list (kept in this browser only) */
+function getHist(){ try { return JSON.parse(localStorage.getItem("sf_hist")||"[]"); } catch { return []; } }
+function save(r){ r = { title:r.title, artist:r.artist||"" };
+  try { const h = getHist().filter(x => !(x.t===r.title && x.a===r.artist));
+    h.unshift({ t:r.title, a:r.artist }); localStorage.setItem("sf_hist", JSON.stringify(h.slice(0,20))); } catch {}
+  renderHist();
+}
+function renderHist(){
+  const h = getHist(); $("histBox").hidden = !h.length;
+  $("hist").innerHTML = h.map((x,i)=>`<li style="animation-delay:${i*60}ms">${esc(x.t)} <span>${esc(x.a)}</span></li>`).join("");
+}
+$("clear").onclick = () => { try{ localStorage.removeItem("sf_hist"); }catch{} renderHist(); };
+btn.onclick = listen;
+addEventListener("resize", ()=>{ fx.width = innerWidth; fx.height = innerHeight; });
+fx.width = innerWidth; fx.height = innerHeight;
+renderHist();
+</script>
+</body>
+</html>
